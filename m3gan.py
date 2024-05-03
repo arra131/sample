@@ -341,8 +341,9 @@ class m3gan(object):
                 # visualise_vae(continuous_x_random, np.vstack(c_rec_data_lst), discrete_x_random, np.vstack(d_rec_data_lst), inx=(pre+1))    ---> not commented in actual code 
                 print('finish vae reconstructed data saving in pre-epoch ' + str(pre))
 
-                np.savez(r"reconstraucted_data2.npz", c_real=np.vstack(c_real_data_lst), c_rec=np.vstack(c_rec_data_lst),
-                                      d_real=np.vstack(d_real_data_lst), d_rec=np.vstack(d_rec_data_lst))
+                with tf.device('/gpu:0'):
+                    np.savez(r"cuda_test.npz", c_real=np.vstack(c_real_data_lst), c_rec=np.vstack(c_rec_data_lst),
+                                          d_real=np.vstack(d_real_data_lst), d_rec=np.vstack(d_rec_data_lst))
         
         # saving the pre-trained model
 
