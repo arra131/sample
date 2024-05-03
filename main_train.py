@@ -2,25 +2,37 @@ import tensorflow as tf
 import numpy as np
 import pickle
 import os
-import sys
 from networks import C_VAE_NET, D_VAE_NET
 from m3gan import m3gan
 from utils import renormlizer
 
+with tf.device('/device:GPU:0'):
 # prepare data for training
-with open(r"vital_sign_24hrs_10kx2x3.pkl", 'rb') as f:
-    vital_labs_3D = pickle.load(f)
+    with open(r'continuous_data.pkl', 'rb') as f:
+        vital_labs_3D = pickle.load(f)
 
-print(vital_labs_3D.shape)
+    with open(r"discrete_data.pkl", 'rb') as f:
+        medical_interv_3D = pickle.load(f)
 
-with open(r"med_interv_24hrs_10kx2x3.pkl", 'rb') as f:
-    medical_interv_3D = pickle.load(f)
+    '''with open(r"/home/arra298c/thesis/code/missing_data_VAE/VAE/data/data_statics_3_.pkl", 'rb') as f:
+        statics = pickle.load(f)
 
-with open(r'data_statics_10kx2x3.pkl', 'rb') as f:
-    statics = pickle.load(f)
+    with open(r"/home/arra298c/thesis/code/missing_data_VAE/25000x5x3/5percent_missing/binary_mask_25kx5x3.pkl", 'rb') as f:
+        binary_mask = pickle.load(f)'''
 
 continuous_x = vital_labs_3D
 discrete_x = medical_interv_3D
+#bi = binary_mask
+
+
+# Check for NaN values
+nan_count = np.isnan(continuous_x).sum()
+
+# Check for available values
+available_values = np.isfinite(continuous_x).sum()
+
+print("Number of NaN values:", nan_count)
+print("Number of available values:", available_values)
 
 # timeseries parameters:
 
@@ -32,8 +44,8 @@ no_gen = continuous_x[0]
 # hyper-params for training
 
 batch_size = 100
-num_pre_epochs = 50
-num_epochs = 10
+num_pre_epochs = 10
+num_epochs = 20
 epoch_ckpt_freq = 10
 epoch_loss_freq = 2
 
@@ -50,8 +62,8 @@ d_noise_dim = int(d_dim/2)
 d_rounds=1
 g_rounds=3
 v_rounds=1
-v_lr_pre=0.0005
-v_lr=0.0001  
+v_lr_pre=0.00025
+v_lr=0.001  
 g_lr=0.0001
 d_lr=0.0001
 
@@ -63,7 +75,7 @@ alpha_sm = 1
 c_beta_adv, c_beta_fm = 1, 20
 d_beta_adv, d_beta_fm = 1, 10
 
-enc_size=128
+enc_size=128 
 dec_size=128
 enc_layers=3
 dec_layers=3
@@ -90,32 +102,34 @@ if not os.path.exists(checkpoint_dir):
 
 # pre-training dual-VAE
 tf.reset_default_graph()
-run_config = tf.ConfigProto()
+run_config = tf.ConfigProto(allow_soft_placement = True)
+run_config.gpu_options.allow_growth = True
 with tf.Session(config=run_config) as sess:
-    model = m3gan(sess=sess,
-                  batch_size=batch_size,
-                  time_steps=time_steps,
-                  num_pre_epochs=num_pre_epochs,
-                  num_epochs=num_epochs,
-                  checkpoint_dir=checkpoint_dir,
-                  epoch_ckpt_freq=epoch_ckpt_freq,
-                  epoch_loss_freq=epoch_loss_freq,
-                  # params for c
-                  c_dim=c_dim, c_noise_dim=c_noise_dim,
-                  c_z_size=c_z_size, c_data_sample=continuous_x,
-                  c_vae=c_vae,
-                  # params for d
-                  d_dim=d_dim, d_noise_dim=d_noise_dim,
-                  d_z_size=d_z_size, d_data_sample=discrete_x,
-                  d_vae=d_vae,
-                  # params for training
-                  d_rounds=d_rounds, g_rounds=g_rounds, v_rounds=v_rounds,
-                  v_lr_pre=v_lr_pre, v_lr=v_lr, g_lr=g_lr, d_lr=d_lr,
-                  alpha_re=alpha_re, alpha_kl=alpha_kl, alpha_mt=alpha_mt, 
-                  alpha_ct=alpha_ct, alpha_sm=alpha_sm,
-                  c_beta_adv=c_beta_adv, c_beta_fm=c_beta_fm, 
-                  d_beta_adv=d_beta_adv, d_beta_fm=d_beta_fm)
-    model.build()
-    model.train()
+    with tf.device('/device:GPU:0'): 
+        model = m3gan(sess=sess,
+                    batch_size=batch_size,
+                    time_steps=time_steps,
+                    num_pre_epochs=num_pre_epochs,
+                    num_epochs=num_epochs,
+                    checkpoint_dir=checkpoint_dir,
+                    epoch_ckpt_freq=epoch_ckpt_freq,
+                    epoch_loss_freq=epoch_loss_freq,
+                    # params for c
+                    c_dim=c_dim, c_noise_dim=c_noise_dim,
+                    c_z_size=c_z_size, c_data_sample=continuous_x,
+                    c_vae=c_vae,
+                    # params for d
+                    d_dim=d_dim, d_noise_dim=d_noise_dim,
+                    d_z_size=d_z_size, d_data_sample=discrete_x,
+                    d_vae=d_vae,
+                    # params for training
+                    d_rounds=d_rounds, g_rounds=g_rounds, v_rounds=v_rounds,
+                    v_lr_pre=v_lr_pre, v_lr=v_lr, g_lr=g_lr, d_lr=d_lr,
+                    alpha_re=alpha_re, alpha_kl=alpha_kl, alpha_mt=alpha_mt, 
+                    alpha_ct=alpha_ct, alpha_sm=alpha_sm,
+                    c_beta_adv=c_beta_adv, c_beta_fm=c_beta_fm, 
+                    d_beta_adv=d_beta_adv, d_beta_fm=d_beta_fm)
+        model.build()
+        model.train()
 
 print("the END")
